@@ -20,7 +20,7 @@ WRITE_ADDRESS = (I2C_ADDRESS << 1) & 0b11111110  # The EEPROM write address is t
 READ_ADDRESS = (I2C_ADDRESS << 1) | 0b00000001   # The EEPROM read address is the I2C_ADDRESS but bit shifted and with a 1 in the LSB
 
 # Input Configuration Constants
-inputFileName = "Blank_Dump.hex"
+inputFileName = "SFP_Dump.hex"
 fileSize = stat(inputFileName).st_size
 
 # Check that the file will fit on the EEPROM
@@ -70,4 +70,6 @@ with open(inputFileName, "rb") as dumpFile:
             # Calculate the next address to read from
             byteAddress += txCount
 
-
+# After the write is finished, disable the power from the peripheral
+busPirate.stop()
+busPirate.configure(power = False)
