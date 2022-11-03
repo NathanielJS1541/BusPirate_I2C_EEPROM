@@ -1,6 +1,6 @@
 # BusPirate_I2C_EEPROM
 These Python scripts are intended to make reading/writing large amounts of data to I2C EEPROM chips with a [BusPirate](http://dangerousprototypes.com/docs/Bus_Pirate) much easier. I 
-have found that tools like [flashrom](https://github.com/flashrom/flashrom) work really well for SPI EEPROM chips, but there doesn't really seem to be any programs that allow the 
+have found that tools like [flashrom](https://github.com/flashrom/flashrom) work really well for SPI EEPROM chips, but there don't really seem to be any programs that allow the 
 same functionality for I2C EEPROM chips.
 
 ## Tested EEPROM Chips
