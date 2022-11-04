@@ -8,7 +8,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 # EEPROM Constants
-MAXIMUM_ADDRESS = 0xFFFF  # These scripts only support 16-bit memory addresses.
+MAXIMUM_MEMORY_ADDRESS = 0xFFFF  # These scripts only support 16-bit memory addresses.
 
 # Colours for output to terminal (Blender Style)
 class OutputColours:
@@ -22,21 +22,21 @@ class OutputColours:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-# ---------------------------------------------------------------------------------------------- Argument Parser -----------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------- Argument Parser ------------------------------------------------------------------------------------------------
 # Set up the argument parser to retreive inputs from the user
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("-b", "--bytes",       dest="bytesPerPage", help="The number of bytes per page listed in the EEPROM datasheet.",                     type=int,  required=True)
-parser.add_argument("-p", "--pages",       dest="totalPages",   help="The number of memory pages listed in the EEPROM datasheet.",                       type=int,  required=True)
-parser.add_argument("-s", "--hexstring",   dest="hexString",    help="A string of hex characters that will be used to output to the dump file.",         type=str,  required=False, default="DEADBEEF")
-parser.add_argument("-o", "--output-file", dest="outputFile",   help="Path to the dump file that will be created by the program.",                       type=Path, required=False, default="./Blank_Dump.hex")
-parser.add_argument("-f", "--force",       dest="force",        help="Allow overwrites of the output file if it exists, and create missing directories", action="store_true")
-parser.add_argument("-v", "--verbose",     dest="verbose",      help="Print verbose messages.",                                                          action="store_true")
+parser.add_argument("-b", "--bytes-per-page", dest="bytesPerPage", help="The number of bytes per page listed in the EEPROM datasheet.",                     type=int,  required=True)
+parser.add_argument("-p", "--total-pages",    dest="totalPages",   help="The number of memory pages listed in the EEPROM datasheet.",                       type=int,  required=True)
+parser.add_argument("-s", "--hexstring",      dest="hexString",    help="A string of hex characters that will be used to output to the dump file.",         type=str,  required=False, default="DEADBEEF")
+parser.add_argument("-o", "--output-file",    dest="outputFile",   help="Path to the dump file that will be created by the program.",                       type=Path, required=False, default="./Blank_Dump.hex")
+parser.add_argument("-f", "--force",          dest="force",        help="Allow overwrites of the output file if it exists, and create missing directories", action="store_true")
+parser.add_argument("-v", "--verbose",        dest="verbose",      help="Print verbose messages.",                                                          action="store_true")
 
 # Parse the user inputs using the argument parser
 args = parser.parse_args()
-# --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------------------------- Input Valudation ----------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------- Input Valudation -----------------------------------------------------------------------------------------------
 # Just warn the user about using the -f flag when it is not needed
 if args.force:
     print(f"{OutputColours.WARNING}[WARN] The {OutputColours.BOLD}-f{OutputColours.END}{OutputColours.WARNING} flag allows the program to overwrite existing files on your system, and recursively create "
@@ -46,8 +46,8 @@ if args.force:
 totalBytes = args.bytesPerPage * args.totalPages
 
 # Ensure that the specified file can be writted to a device with 16-bit addresses, as this is what the other scripts here support.
-if totalBytes > MAXIMUM_ADDRESS:
-    raise ValueError(f"{OutputColours.ERROR}[ERR]These scripts can operate with up to 16-bit memory addresses. The maximum possible address is {MAXIMUM_ADDRESS}, but up to address {totalBytes} was "
+if totalBytes > MAXIMUM_MEMORY_ADDRESS:
+    raise ValueError(f"{OutputColours.ERROR}[ERR] These scripts can operate with up to 16-bit memory addresses. The maximum possible address is {MAXIMUM_MEMORY_ADDRESS}, but up to address {totalBytes} was "
                      f"requested. Consider lowering the pages (-p) value.{OutputColours.END}")
 
 # Convert the hex string into an immutable array of bytes
@@ -72,21 +72,18 @@ elif args.outputFile.is_file() and args.force:
 elif args.outputFile.exists() and args.outputFile.is_dir():
     # In this case, it appears as if the specified output is a directory. Warn user and quit.
     raise SystemExit(f"{OutputColours.ERROR}[ERR] The specified output appears to be a directory.{OutputColours.END}")
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Initialise the output file and a progress bar for the write operation
 with open(args.outputFile, "wb") as dumpFile:
     with tqdm(total = totalBytes, unit = " bytes") as writeProgress:
-        byteAddress = 0  # Start at address 0
+        # Start at address 0
+        byteAddress = 0
 
         # Sequentially write to the file
-        while (byteAddress <= totalBytes):
+        while (byteAddress < totalBytes):
             # Calculate the number of bytes to write. This is either the full length of the dumpString, or the remaining amount of bytes to fill the EEPROM; whichever is smaller.
             bytesToWrite = min(dumpStringBytes, (totalBytes - byteAddress))
-            
-            # Detect whether the file has been fully written.
-            if bytesToWrite == 0:
-                break
 
             # Write the number of bytes calculated from the string.
             dumpFile.write(dumpString[0:bytesToWrite])
@@ -95,7 +92,7 @@ with open(args.outputFile, "wb") as dumpFile:
             byteAddress += bytesToWrite
 
             # Update progress bar
-            writeProgress.update(byteAddress)
+            writeProgress.update(bytesToWrite)
 
 # After file close, inform the user that the write completed successfully
 print(f"{OutputColours.INFO}[INFO] File written to {args.outputFile.resolve()}.")
