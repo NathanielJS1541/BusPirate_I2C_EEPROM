@@ -80,6 +80,8 @@ busPirate.start()
 with tqdm(total = totalBytes, unit = " bytes") as writeProgress:
     # Start at address 0
     byteAddress = 0
+    # If the string length doesn't fit perfectly into a memory page, we need to keep track of which character the last page ended on
+    wiperStringStart = 0
     
     # Loop through every available byte on the EEPROM and write to it
     while (byteAddress < totalBytes):
@@ -92,11 +94,28 @@ with tqdm(total = totalBytes, unit = " bytes") as writeProgress:
             partialWiperStringBytes = bytesToWrite % wiperStringBytes
             # Calculate how many complete wiper strings will fit in the page
             completeWiperStrings = int((bytesToWrite - partialWiperStringBytes) / wiperStringBytes)
-            # Subtract the number of bytes that could not be filled with the string
-            bytesToWrite -= partialWiperStringBytes
             # Fill as much of the page with completed wiper strings as possible
-            wiperData = list(wiperString) * completeWiperStrings
+            wiperData = list(wiperString[wiperStringStart:] + wiperString[:wiperStringStart]) * completeWiperStrings
+            # Fill the remainder of the page with a partial string
+            wiperStringEnd = wiperStringStart + partialWiperStringBytes
+            if wiperStringEnd > wiperStringBytes:
+                wiperStringEnd -= wiperStringBytes
+                wiperData += list(wiperString[wiperStringStart:] + wiperString[:wiperStringEnd])
+            else:
+                wiperData += list(wiperString[wiperStringStart:wiperStringEnd])
+            # Keep track of where the string needs to start and end on the next page
+            wiperStringStart += partialWiperStringBytes
+            # Ensure the tracker variables stay within the range of the string
+            while wiperStringStart > wiperStringBytes:
+                wiperStringStart -= wiperStringBytes
+            
         else:
+            wiperStringEnd = wiperStringStart + bytesToWrite
+            if wiperStringEnd > wiperStringBytes:
+                wiperStringEnd -= wiperStringBytes
+                wiperData += list(wiperString[wiperStringStart:] + wiperString[:wiperStringEnd])
+            else:
+                wiperData += list(wiperString[wiperStringStart:wiperStringEnd])
             wiperData = list(wiperString[0:bytesToWrite])
 
         # Transmit the write address of the EEPROM, along with the byte position to start writing and the data to write.
