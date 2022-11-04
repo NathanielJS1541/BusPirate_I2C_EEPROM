@@ -112,7 +112,7 @@ with open(args.inputFile, "rb") as dumpFile:
             # Write and then read the specified number of bytes
             rxData = busPirate.write_then_read(len(txData), 0, txData)
 
-            # Calculate the next address to read from
+            # Calculate the next address to flash
             byteAddress += txCount
             
             # Update progress bar
