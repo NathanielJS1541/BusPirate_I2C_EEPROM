@@ -109,7 +109,7 @@ with open(args.outputFile, "wb") as dumpFile:
         # Loop through every available byte in the EEPROM and dump it to a file
         while (byteAddress < totalBytes):
             # Set the EEPROM address for a sequential read.
-            busPirate.transfer([WRITE_ADDRESS, ((byteAddress >> 8) & 0x7F), (byteAddress & 0xFF) ])
+            busPirate.transfer([WRITE_ADDRESS, ((byteAddress >> 8) & 0xFF), (byteAddress & 0xFF) ])
 
             # Read the max amount of data, or the remaining data (whichever is smaller)
             rxCount = min(args.bytesPerPage, (totalBytes - byteAddress))

@@ -107,7 +107,7 @@ with open(args.inputFile, "rb") as dumpFile:
             fileData = list(dumpFile.read(txCount))
 
             # Transmit the write address of the EEPROM, along with the byte position to start writing and the data to write.
-            txData = [WRITE_ADDRESS, ((byteAddress >> 8) & 0x7F), (byteAddress & 0xFF)] + fileData
+            txData = [WRITE_ADDRESS, ((byteAddress >> 8) & 0xFF), (byteAddress & 0xFF)] + fileData
 
             # Write and then read the specified number of bytes
             rxData = busPirate.write_then_read(len(txData), 0, txData)
