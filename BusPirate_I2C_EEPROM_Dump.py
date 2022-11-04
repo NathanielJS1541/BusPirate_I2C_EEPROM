@@ -33,7 +33,7 @@ def auto_int(x):
 # ------------------------------------------------------------------------------------------------ Argument Parser -------------------------------------------------------------------------------------------------
 # Set up the argument parser to retreive inputs from the user
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("-a", "--address",        dest="address",       help="The I2C address of the EEPROM module (Note: not the read or write addresses).",    type=auto_int,  required=False, default=0x50)
+parser.add_argument("-a", "--address",        dest="address",       help="The I2C address of the EEPROM module (Note: not the read or write addresses).",    type=auto_int,  required=False, default=hex(0x50))
 parser.add_argument("-c", "--clock-speed",    dest="clockSpeed",    help="The clock speed to use when communicating with the EEPROM module.",                type=str,  required=False, default="400kHz", choices=["400kHz", "100kHz", "50kHz", "5kHz"])
 parser.add_argument("-b", "--bytes-per-page", dest="bytesPerPage",  help="The number of bytes per page listed in the EEPROM datasheet.",                     type=int,  required=True)
 parser.add_argument("-p", "--total-pages",    dest="totalPages",    help="The number of memory pages listed in the EEPROM datasheet.",                       type=int,  required=True)
@@ -82,7 +82,7 @@ if args.outputFile.exists() and args.outputFile.is_file() and not args.force:
     raise SystemExit(f"{OutputColours.ERROR}[ERR] The output file already exists and --force/-f has not been specified.{OutputColours.END}")
 elif args.outputFile.is_file() and args.force:
     # If -f was specified and the file exists, just warn that the file will be overwritten. Too late now...
-    print(f"{OutputColours.WARNING}[WARN] The existing file {args.outputFile} will be overwritten.{OutputColours.END}")
+    print(f"{OutputColours.WARNING}[WARN] The existing file {args.outputFile.resolve()} will be overwritten.{OutputColours.END}")
 elif args.outputFile.exists() and args.outputFile.is_dir():
     # In this case, it appears as if the specified output is a directory. Warn user and quit.
     raise SystemExit(f"{OutputColours.ERROR}[ERR] The specified output appears to be a directory.{OutputColours.END}")
@@ -100,11 +100,13 @@ busPirate.configure(power = True, pullup = args.enablePullups)
 # Send a start bit
 busPirate.start()
 
-# Initialise a progress bar for the read operation
+# Initialise the output file and a progress bar for the write operation
 with open(args.outputFile, "wb") as dumpFile:
     with tqdm(total = totalBytes, unit = " bytes") as readProgress:
-        # Loop through every available byte and read it
-        byteAddress = 0 # Start at address 0
+        # Start at address 0
+        byteAddress = 0
+        
+        # Loop through every available byte in the EEPROM and dump it to a file
         while (byteAddress < totalBytes):
             # Set the EEPROM address for a sequential read.
             busPirate.transfer([WRITE_ADDRESS, ((byteAddress >> 8) & 0x7F), (byteAddress & 0xFF) ])
@@ -126,6 +128,10 @@ with open(args.outputFile, "wb") as dumpFile:
             # Update progress bar
             readProgress.update(rxCount)
 
-# After file close, inform the user that the write completed successfully
-print(f"{OutputColours.INFO}[INFO] File written to {args.outputFile.resolve()}.")
+# After the dump is finished, send a stop bit and disable the power supply on the BusPirate
+busPirate.stop()
+busPirate.configure(power = False)
+
+# After file close, inform the user that the dump completed successfully
+print(f"{OutputColours.INFO}[INFO] File written to {args.outputFile.resolve()}.{OutputColours.END}")
 

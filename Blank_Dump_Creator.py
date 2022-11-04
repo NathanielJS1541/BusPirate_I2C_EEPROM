@@ -68,7 +68,7 @@ if args.outputFile.exists() and args.outputFile.is_file() and not args.force:
     raise SystemExit(f"{OutputColours.ERROR}[ERR] The output file already exists and --force/-f has not been specified.{OutputColours.END}")
 elif args.outputFile.is_file() and args.force:
     # If -f was specified and the file exists, just warn that the file will be overwritten. Too late now...
-    print(f"{OutputColours.WARNING}[WARN] The existing file {args.outputFile} will be overwritten.{OutputColours.END}")
+    print(f"{OutputColours.WARNING}[WARN] The existing file {args.outputFile.resolve()} will be overwritten.{OutputColours.END}")
 elif args.outputFile.exists() and args.outputFile.is_dir():
     # In this case, it appears as if the specified output is a directory. Warn user and quit.
     raise SystemExit(f"{OutputColours.ERROR}[ERR] The specified output appears to be a directory.{OutputColours.END}")
