@@ -99,7 +99,6 @@ busPirate.configure(power = True, pullup = args.enablePullups)
 
 # Send a start bit
 busPirate.start()
-
 # Initialise the output file and a progress bar for the write operation
 with open(args.outputFile, "wb") as dumpFile:
     with tqdm(total = totalBytes, unit = " bytes") as readProgress:
@@ -127,10 +126,11 @@ with open(args.outputFile, "wb") as dumpFile:
             
             # Update progress bar
             readProgress.update(rxCount)
-
-# After the dump is finished, send a stop bit and disable the power supply on the BusPirate
+# Send a stop bit
 busPirate.stop()
-busPirate.configure(power = False)
+
+# Reset the BusPirate to disable all outputs and reset it to "HiZ" mode. Should also free up the COM port.
+busPirate.hw_reset()
 
 # After file close, inform the user that the dump completed successfully
 print(f"{OutputColours.INFO}[INFO] File written to {args.outputFile.resolve()}.{OutputColours.END}")

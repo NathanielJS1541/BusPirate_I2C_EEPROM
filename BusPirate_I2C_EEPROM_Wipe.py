@@ -75,7 +75,7 @@ busPirate.configure(power = True, pullup = args.enablePullups)
 
 # Send a start bit
 busPirate.start()
-
+print(f"{OutputColours.INFO}[INFO] Wiping EEPROM:{OutputColours.END}")
 # Initialise a progress bar for the write operation
 with tqdm(total = totalBytes, unit = " bytes") as writeProgress:
     # Start at address 0
@@ -129,11 +129,83 @@ with tqdm(total = totalBytes, unit = " bytes") as writeProgress:
         
         # Update progress bar
         writeProgress.update(bytesToWrite)
-
-# After the wipe is finished, send a stop bit and disable the power supply on the BusPirate
+# Send a stop bit
 busPirate.stop()
-busPirate.configure(power = False)
 
-# Inform the user that the wipe completed successfully
-print(f"{OutputColours.INFO}[INFO] EEPROM wiped successfully.{OutputColours.END}")
+# Send a start bit
+busPirate.start()
+print(f"{OutputColours.INFO}[INFO] Verifying wipe operation:{OutputColours.END}")
+# Initialise a progress bar for the verify operation
+verifyError = False
+with tqdm(total = totalBytes, unit = " bytes") as verifyProgress:
+    # Start at address 0
+    byteAddress = 0
+    # If the string length doesn't fit perfectly into a memory page, we need to keep track of which character the last page ended on
+    wiperStringStart = 0
+    
+    # Loop through every available byte on the EEPROM and read it, then compare it to what was flashed
+    while (byteAddress < totalBytes):
+        # Read the max amount of data, or the remaining data (whichever is smaller)
+        bytesToRead = min(args.bytesPerPage, (totalBytes - byteAddress))
+
+        # Load the correct number of bytes for the string to verify against
+        if bytesToRead > wiperStringBytes:
+            # Calculate how many characters would be filled with partial data in this page
+            partialWiperStringBytes = bytesToRead % wiperStringBytes
+            # Calculate how many complete wiper strings will fit in the page
+            completeWiperStrings = int((bytesToRead - partialWiperStringBytes) / wiperStringBytes)
+            # Fill as much of the page with completed wiper strings as possible
+            verifyData = list(wiperString[wiperStringStart:] + wiperString[:wiperStringStart]) * completeWiperStrings
+            # Fill the remainder of the page with a partial string
+            wiperStringEnd = wiperStringStart + partialWiperStringBytes
+            if wiperStringEnd > wiperStringBytes:
+                wiperStringEnd -= wiperStringBytes
+                verifyData += list(wiperString[wiperStringStart:] + wiperString[:wiperStringEnd])
+            else:
+                verifyData += list(wiperString[wiperStringStart:wiperStringEnd])
+            # Keep track of where the string needs to start and end on the next page
+            wiperStringStart += partialWiperStringBytes
+            # Ensure the tracker variables stay within the range of the string
+            while wiperStringStart > wiperStringBytes:
+                wiperStringStart -= wiperStringBytes
+            
+        else:
+            wiperStringEnd = wiperStringStart + bytesToRead
+            if wiperStringEnd > wiperStringBytes:
+                wiperStringEnd -= wiperStringBytes
+                verifyData += list(wiperString[wiperStringStart:] + wiperString[:wiperStringEnd])
+            else:
+                verifyData += list(wiperString[wiperStringStart:wiperStringEnd])
+            verifyData = list(wiperString[0:bytesToRead])
+        
+        # Set the EEPROM address for a sequential read.
+        busPirate.transfer([WRITE_ADDRESS, ((byteAddress >> 8) & 0xFF), (byteAddress & 0xFF) ])
+
+        # The only data to be written is the read address of the EEPROM
+        txData = [READ_ADDRESS]
+
+        # Write and then read the specified number of bytes
+        rxData = busPirate.write_then_read(len(txData), bytesToRead, txData)
+        
+        # Compare the read data and the calculated data
+        if bytes(verifyData) != rxData:
+            verifyError = True
+            break
+
+        # Calculate the next address to wipe
+        byteAddress += bytesToRead
+        
+        # Update progress bar
+        verifyProgress.update(bytesToRead)
+# Send a stop bit
+busPirate.stop()
+
+# Reset the BusPirate to disable all outputs and reset it to "HiZ" mode. Should also free up the COM port.
+busPirate.hw_reset()
+
+# Output info to the user
+if verifyError:
+    print(f"{OutputColours.ERROR}[ERR] Verification failed.{OutputColours.END}")
+else:
+    print(f"{OutputColours.INFO}[INFO] EEPROM wiped successfully.{OutputColours.END}")
 

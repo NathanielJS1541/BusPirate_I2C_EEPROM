@@ -89,7 +89,7 @@ busPirate.configure(power = True, pullup = args.enablePullups)
 
 # Send a start bit
 busPirate.start()
-
+print(f"{OutputColours.INFO}[INFO] Flashing EEPROM:{OutputColours.END}")
 # Initialise the input file and a progress bar for the write operation
 with open(args.inputFile, "rb") as dumpFile:
     with tqdm(total = fileSize, unit = " bytes") as writeProgress:
@@ -117,10 +117,56 @@ with open(args.inputFile, "rb") as dumpFile:
             
             # Update progress bar
             writeProgress.update(txCount)
-
-# After the flash is finished, send a stop bit and disable the power supply on the BusPirate
+# Send a stop bit
 busPirate.stop()
-busPirate.configure(power = False)
 
-# After file close, inform the user that the flash completed successfully
-print(f"{OutputColours.INFO}[INFO] File flashed to EEPROM successfully.{OutputColours.END}")
+# Send a start bit
+busPirate.start()
+verifyError = False
+print(f"{OutputColours.INFO}[INFO] Verifying flash operation:{OutputColours.END}")
+# Initialise the input file and a progress bar for the verify operation
+with open(args.inputFile, "rb") as dumpFile:
+    with tqdm(total = fileSize, unit = " bytes") as writeProgress:
+        # Start at address 0
+        byteAddress = 0
+        # Seek to the correct position in the file to begin reading from
+        dumpFile.seek(byteAddress)
+        
+        # Loop through every available byte in the input file and compare it with the EEPROM contents
+        while (byteAddress < fileSize):
+            # Read the max amount of data, or the remaining data (whichever is smaller)
+            verifyCount = min(args.bytesPerPage, (fileSize - byteAddress))
+
+            # Load the correct number of bytes for the tx
+            fileData = dumpFile.read(verifyCount)
+
+            # Set the EEPROM address for a sequential read.
+            busPirate.transfer([WRITE_ADDRESS, ((byteAddress >> 8) & 0xFF), (byteAddress & 0xFF) ])
+            
+            # The only data to be written is the read address of the EEPROM
+            txData = [READ_ADDRESS]
+
+            # Write and then read the specified number of bytes
+            rxData = busPirate.write_then_read(len(txData), verifyCount, txData)
+            
+            # Compare the read data and the file data
+            if bytes(fileData) != rxData:
+                verifyError = True
+                break
+
+            # Calculate the next address to verify
+            byteAddress += verifyCount
+            
+            # Update progress bar
+            writeProgress.update(verifyCount)
+# Send a stop bit
+busPirate.stop()
+
+# Reset the BusPirate to disable all outputs and reset it to "HiZ" mode. Should also free up the COM port.
+busPirate.hw_reset()
+
+# Output info to the user
+if verifyError:
+    print(f"{OutputColours.ERROR}[ERR] Verification failed.{OutputColours.END}")
+else:
+    print(f"{OutputColours.INFO}[INFO] EEPROM flashed successfully.{OutputColours.END}")
