@@ -13,6 +13,7 @@ for the chips I have tested will be in the **Datasheets** directory.
 - [pyBusPirateLite](https://github.com/juhasch/pyBusPirateLite)
   - Just clone this repo somewhere and run `python ./setup.py install` from in the repo to install the library and its dependencies.
 - [tqdm](https://github.com/tqdm/tqdm)
+- [termtables](https://github.com/nschloe/termtables)
 - A [BusPirate](http://dangerousprototypes.com/docs/Bus_Pirate)
 
 ## Basic Wiring Diagram
